@@ -1,0 +1,77 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: alert-sink-webhook
+    receivers:
+      - uid: alert-sink-rcv
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: http://alert-sink:9099/webhook
+          httpMethod: POST
+
+policies:
+  - orgId: 1
+    receiver: alert-sink-webhook
+    group_by: ['alertname', 'job']
+    group_wait: 5s
+    group_interval: 10s
+    repeat_interval: 1h
+
+groups:
+  - orgId: 1
+    name: "Security Alerts"
+    folder: "POS Monitoring"
+    interval: 10s
+    rules:
+      - uid: pos-brute-force-login
+        title: "POS - Brute force login"
+        condition: B
+        for: 0s
+        data:
+          - refId: A
+            queryType: range
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: loki
+            model:
+              editorMode: code
+              expr: 'sum(count_over_time({job="webapp"} |= "LOGIN_FAILED" [1m]))'
+              queryType: range
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              type: threshold
+              refId: B
+        labels:
+          severity: critical
+          alertname: "POS - Brute force login"
+        annotations:
+          summary: "Phát hiện tấn công dò mật khẩu (brute force) trên hệ thống POS"
+          description: "Số lần đăng nhập thất bại vượt quá 5 lần trong 1 phút trên web POS. Hãy truy vết IP nguồn và tài khoản bằng LogQL: {job=\"webapp\"} |= \"LOGIN_FAILED\""
+          runbook_url: "https://192.168.47.128/grafana/d/pos-logs"

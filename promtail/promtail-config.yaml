@@ -1,0 +1,64 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Extract container name (strip leading slash)
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Extract compose service name
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+
+      # Default job to compose_service
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'job'
+
+      # job="nginx" for nginx
+      - source_labels: ['compose_service']
+        regex: 'nginx'
+        target_label: 'job'
+        replacement: 'nginx'
+
+      # job="webapp" for web
+      - source_labels: ['compose_service']
+        regex: 'web'
+        target_label: 'job'
+        replacement: 'webapp'
+
+      # job="mysql" for db
+      - source_labels: ['compose_service']
+        regex: 'db'
+        target_label: 'job'
+        replacement: 'mysql'
+
+      # Map container ID to log file path
+      - source_labels: ['__meta_docker_container_id']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/*-json.log'
+
+    pipeline_stages:
+      # Un-wrap Docker container json log
+      - docker: {}
+
+      # Parse Nginx access logs (extract status, remote_addr, request without IP as label)
+      - match:
+          selector: '{job="nginx"}'
+          stages:
+            - regex:
+                expression: '^(?P<remote_addr>[\w\.]+) - (?P<remote_user>[^ ]*) \[(?P<time_local>[^\]]*)\] "(?P<request>[^"]*)" (?P<status>\d+) (?P<bytes_sent>\d+)'
+            - labels:
+                status:

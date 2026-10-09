@@ -116,3 +116,21 @@ cp .env.example .env
    GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
    FLUSH PRIVILEGES;
    ```
+
+### Hướng dẫn Quản lý Log Tập trung (Loki) & Cảnh báo Sự cố (Alerting):
+1. **Truy vấn LogQL trên Grafana Explore:**
+   - Mở Grafana -> Explore -> Chọn Datasource **Loki**.
+   - Các câu truy vấn mẫu (LogQL):
+     - Lỗi HTTP 5xx của Nginx: `{job="nginx"} |~ " 5[0-9]{2} "`
+     - Lỗi / ngoại lệ Web: `{job="webapp"} |~ "(?i)(error|exception|failed)"`
+     - Đăng nhập thất bại: `{job="webapp"} |= "LOGIN_FAILED"`
+     - Tần suất đăng nhập thất bại / phút: `sum(count_over_time({job="webapp"} |= "LOGIN_FAILED" [1m]))`
+
+2. **Kịch bản Sự cố An toàn Thông tin - Tấn công Brute Force:**
+   - Mô phỏng tấn công bằng script:
+     ```bash
+     bash scripts/simulate_bruteforce.sh
+     ```
+   - Cảnh báo tự động: Rule `POS - Brute force login` kích hoạt (Firing) sau 10s khi số lần thử sai > 5 / phút, gửi Webhook về `alert-sink` (port 9099).
+   - Xem chi tiết phân tích và truy vết sự cố tại file: [docs/su-co-bruteforce.md](docs/su-co-bruteforce.md).
+   - Phòng thủ Nginx: Áp dụng `limit_req_zone` giới hạn tốc độ 10r/m cho `/login.php`, tự động chặn đứng kẻ tấn công bằng mã phản hồi `HTTP 429 Too Many Requests`.
