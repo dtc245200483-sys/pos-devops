@@ -128,9 +128,14 @@ cp .env.example .env
 
 2. **Kịch bản Sự cố An toàn Thông tin - Tấn công Brute Force:**
    - Mô phỏng tấn công bằng script:
-     ```bash
-     bash scripts/simulate_bruteforce.sh
-     ```
+     - Trên máy Linux / Ubuntu:
+       ```bash
+       bash scripts/simulate_bruteforce.sh
+       ```
+     - Trên máy Windows (PowerShell):
+       ```powershell
+       powershell -ExecutionPolicy Bypass -File scripts/simulate_bruteforce.ps1
+       ```
    - Cảnh báo tự động: Rule `POS - Brute force login` kích hoạt (Firing) sau 10s khi số lần thử sai > 5 / phút, gửi Webhook về `alert-sink` (port 9099).
    - Xem chi tiết phân tích và truy vết sự cố tại file: [docs/su-co-bruteforce.md](docs/su-co-bruteforce.md).
    - Phòng thủ Nginx: Áp dụng `limit_req_zone` giới hạn tốc độ 10r/m cho `/login.php`, tự động chặn đứng kẻ tấn công bằng mã phản hồi `HTTP 429 Too Many Requests`.

@@ -19,11 +19,6 @@ function log_auth_event($success, $username, $reason = null) {
         $msg = "LOGIN_FAILED ip={$ip} user={$username} reason={$reason}";
     }
     error_log($msg);
-    $stderr = fopen('php://stderr', 'w');
-    if ($stderr) {
-        fwrite($stderr, $msg . "\n");
-        fclose($stderr);
-    }
 }
 
 function is_logged_in() {
