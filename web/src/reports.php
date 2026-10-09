@@ -9,20 +9,20 @@ $pdo = get_db_connection();
 $period = $_GET['period'] ?? 'today';
 $where_clause = "";
 if ($period === 'today') {
-    $where_clause = "WHERE DATE(created_at) = CURDATE()";
+    $where_clause = "WHERE DATE(o.created_at) = CURDATE()";
     $period_label = "Hôm nay (" . date('d/m/Y') . ")";
 } elseif ($period === 'week') {
-    $where_clause = "WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)";
+    $where_clause = "WHERE YEARWEEK(o.created_at, 1) = YEARWEEK(CURDATE(), 1)";
     $period_label = "Tuần này";
 } elseif ($period === 'month') {
-    $where_clause = "WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+    $where_clause = "WHERE YEAR(o.created_at) = YEAR(CURDATE()) AND MONTH(o.created_at) = MONTH(CURDATE())";
     $period_label = "Tháng này (" . date('m/Y') . ")";
 } else {
     $period_label = "Tất cả thời gian";
 }
 
 // 1. Thống kê tổng quan
-$stats_sql = "SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(AVG(total_amount), 0) as avg_order FROM orders $where_clause";
+$stats_sql = "SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(AVG(total_amount), 0) as avg_order FROM orders o $where_clause";
 $stats = $pdo->query($stats_sql)->fetch();
 
 // 2. Top sản phẩm bán chạy

@@ -358,17 +358,10 @@ require_once __DIR__ . '/includes/header.php';
 
                 <div class="form-group" style="margin-bottom: 1rem;">
                     <label style="font-weight: 600; display: block; margin-bottom: 0.4rem;">Phương thức thanh toán:</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <label style="flex: 1; border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; text-align: center; cursor: pointer;">
-                            <input type="radio" name="payment_method" value="cash" checked onchange="togglePayment(this.value)"> Tiền mặt
-                        </label>
-                        <label style="flex: 1; border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; text-align: center; cursor: pointer;">
-                            <input type="radio" name="payment_method" value="card" onchange="togglePayment(this.value)"> Thẻ ngân hàng (Quẹt thẻ)
-                        </label>
-                        <label style="flex: 1; border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; text-align: center; cursor: pointer;">
-                            <input type="radio" name="payment_method" value="qr" onchange="togglePayment(this.value)"> Quét QR
-                        </label>
+                    <div style="background: #f8fafc; border: 1px solid var(--border); padding: 0.65rem 1rem; border-radius: 6px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 0.5rem;">
+                        💵 Tiền mặt tại quầy
                     </div>
+                    <input type="hidden" name="payment_method" value="cash">
                 </div>
 
                 <div id="cash-section">
