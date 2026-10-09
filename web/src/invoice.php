@@ -72,7 +72,7 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>Hình thức TT:</span>
-            <span><?= $order['payment_method'] === 'cash' ? 'Tiền mặt' : ($order['payment_method'] === 'card' ? 'Thẻ POS' : 'Quét mã QR') ?></span>
+            <span><?= $order['payment_method'] === 'cash' ? 'Tiền mặt' : ($order['payment_method'] === 'card' ? 'Thẻ ngân hàng (Quẹt thẻ)' : 'Quét mã QR') ?></span>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
             <span>Tiền khách đưa:</span>

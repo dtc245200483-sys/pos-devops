@@ -1,3 +1,6 @@
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- Database Schema and Initial Seed for POS System
 CREATE DATABASE IF NOT EXISTS `pos` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `pos`;

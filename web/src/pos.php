@@ -363,7 +363,7 @@ require_once __DIR__ . '/includes/header.php';
                             <input type="radio" name="payment_method" value="cash" checked onchange="togglePayment(this.value)"> Tiền mặt
                         </label>
                         <label style="flex: 1; border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; text-align: center; cursor: pointer;">
-                            <input type="radio" name="payment_method" value="card" onchange="togglePayment(this.value)"> Thẻ POS
+                            <input type="radio" name="payment_method" value="card" onchange="togglePayment(this.value)"> Thẻ ngân hàng (Quẹt thẻ)
                         </label>
                         <label style="flex: 1; border: 1px solid var(--border); padding: 0.5rem; border-radius: 6px; text-align: center; cursor: pointer;">
                             <input type="radio" name="payment_method" value="qr" onchange="togglePayment(this.value)"> Quét QR
