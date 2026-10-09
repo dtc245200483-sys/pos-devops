@@ -66,13 +66,18 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     restart: unless-stopped
     privileged: true
+    command:
+      - -docker=
+      - -containerd=/run/containerd/containerd.sock
+      - -containerd-namespace=moby
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:1.3.0
     restart: unless-stopped

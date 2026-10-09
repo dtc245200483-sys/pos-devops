@@ -9,7 +9,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "panels": [
     {
@@ -24,8 +24,8 @@
       },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name!=\"\"}[1m]) * 100",
-          "legendFormat": "{{name}}"
+          "expr": "sum by (image) (rate(container_cpu_usage_seconds_total{image!=\"\"}[1m])) * 100",
+          "legendFormat": "{{image}}"
         }
       ],
       "fieldConfig": {
@@ -50,8 +50,8 @@
       },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name!=\"\"}",
-          "legendFormat": "{{name}}"
+          "expr": "sum by (image) (container_memory_usage_bytes{image!=\"\"})",
+          "legendFormat": "{{image}}"
         }
       ],
       "fieldConfig": {
@@ -76,8 +76,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (name) (rate(container_network_receive_bytes_total{name!=\"\"}[1m]))",
-          "legendFormat": "{{name}}"
+          "expr": "sum by (interface) (rate(container_network_receive_bytes_total{interface!=\"\"}[1m]))",
+          "legendFormat": "{{interface}}"
         }
       ],
       "fieldConfig": {
@@ -101,8 +101,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (name) (rate(container_network_transmit_bytes_total{name!=\"\"}[1m]))",
-          "legendFormat": "{{name}}"
+          "expr": "sum by (interface) (rate(container_network_transmit_bytes_total{interface!=\"\"}[1m]))",
+          "legendFormat": "{{interface}}"
         }
       ],
       "fieldConfig": {
@@ -116,3 +116,4 @@
     }
   ]
 }
+
