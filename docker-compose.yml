@@ -2,6 +2,7 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -22,8 +23,6 @@ services:
       context: ./web
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "8080:80"
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -38,15 +37,27 @@ services:
   phpmyadmin:
     image: phpmyadmin:5.2.1
     restart: unless-stopped
-    ports:
-      - "8081:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
+      PMA_ABSOLUTE_URI: /phpmyadmin/
       UPLOAD_LIMIT: 64M
     depends_on:
       db:
         condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - web
+      - phpmyadmin
 
 volumes:
   db_data:

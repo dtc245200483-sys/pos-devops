@@ -29,8 +29,19 @@ Hệ thống Quản lý Cửa hàng / Bán lẻ (POS - Point of Sale) phục v�
 - **Yêu cầu:** Docker Engine 24+, Docker Compose v2.
 - **Khởi chạy hệ thống bằng MỘT lệnh duy nhất:**
   ```bash
+  # 1. Sinh chứng chỉ SSL tự ký
+  ./nginx/gen-cert.sh
+
+  # 2. Khởi chạy toàn bộ hệ thống
   docker compose up -d
   ```
+### Khởi tạo Chứng chỉ SSL Tự Ký:
+Trước khi chạy Nginx lần đầu, chạy script để tự động sinh chứng chỉ SSL tự ký:
+```bash
+./nginx/gen-cert.sh
+```
+Chứng chỉ được lưu tại `nginx/certs/server.crt` và khóa riêng tư tại `nginx/certs/server.key` (được bảo vệ trong `.gitignore`).
+
 
 ---
 
