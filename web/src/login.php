@@ -88,7 +88,7 @@ $page_title = "Đăng nhập POS";
         <?= csrf_field() ?>
         <div class="form-group">
             <label for="username">Tên đăng nhập:</label>
-            <input type="text" id="username" name="username" class="form-control" required autofocus placeholder="VD: admin hoặc nhanvien01">
+            <input type="text" id="username" name="username" class="form-control" required autofocus placeholder="Tên đăng nhập">
         </div>
         <div class="form-group">
             <label for="password">Mật khẩu:</label>
