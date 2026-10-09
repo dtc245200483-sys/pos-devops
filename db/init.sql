@@ -85,3 +85,9 @@ INSERT INTO `products` (`code`, `barcode`, `name`, `price`, `stock_qty`, `status
 ('SP014', '893500110014', 'Bột giặt OMO Đỏ Hương ban mai 3kg', 149000, 25, 'in_stock'),
 ('SP015', '893500110015', 'Kem đánh răng P/S Trà xanh 180g', 31000, 70, 'in_stock')
 ON DUPLICATE KEY UPDATE `code`=`code`;
+
+-- MySQL Exporter User for Prometheus Monitoring
+CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY 'change_this_exporter_password_min16chars' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
+GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
+FLUSH PRIVILEGES;

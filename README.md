@@ -92,3 +92,27 @@ cp .env.example .env
 ## 8. Hardening & Tối ưu hóa hệ thống
 - Hardening Docker containers (no-new-privileges, cap-drop, non-root).
 - Tường lửa UFW, cấu hình Nginx rate limiting và bảo vệ cơ sở dữ liệu.
+
+### Hướng dẫn Giám sát Hệ thống (Monitoring):
+1. **Grafana Dashboard (HTTPS):**
+   - Truy cập: `https://192.168.47.128/grafana/`
+   - Đăng nhập: Tài khoản `admin` (mật khẩu trong file `.env`).
+   - Các Dashboard tự động nạp sẵn (Provisioning):
+     - `POS - Containers`: Giám sát CPU %, RAM, Network I/O từng container.
+     - `POS - Nginx`: Giám sát Active connections, Requests/s, Handled/Accepted.
+     - `POS - MySQL`: Giám sát Queries/s, Threads connected/running, InnoDB buffer pool.
+
+2. **Prometheus Targets (SSH Tunnel):**
+   - Vì Prometheus và các Exporter chạy an toàn trong mạng nội bộ Docker (không publish port ra ngoài), bạn có thể mở cổng tạm thời bằng SSH Tunnel từ máy Windows:
+   ```bash
+   ssh -L 9090:localhost:9090 hungkb2k6@192.168.47.128
+   ```
+   Sau đó mở trình duyệt máy Windows truy cập: `http://localhost:9090/targets` để xem 4 targets đều ở trạng thái `UP`.
+
+3. **Cấp quyền cho MySQL Exporter (nếu dùng database có sẵn):**
+   ```sql
+   CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '<MYSQL_EXPORTER_PASSWORD>' WITH MAX_USER_CONNECTIONS 3;
+   GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
+   GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
+   FLUSH PRIVILEGES;
+   ```
