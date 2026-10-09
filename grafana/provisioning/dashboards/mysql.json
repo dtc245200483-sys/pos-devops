@@ -9,7 +9,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "panels": [
     {
@@ -108,7 +108,7 @@
           "legendFormat": "Data Bytes"
         },
         {
-          "expr": "mysql_global_status_innodb_buffer_pool_bytes_free",
+          "expr": "mysql_global_status_buffer_pool_pages{state=\"free\"} * on(instance, job) mysql_global_status_innodb_page_size",
           "legendFormat": "Free Bytes"
         }
       ],
