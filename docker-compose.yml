@@ -1,0 +1,2 @@
+# Docker Compose for POS System (Topic 21)
+# Services: web (PHP-Apache), db (MySQL 8), phpmyadmin, nginx, prometheus, grafana, loki, promtail

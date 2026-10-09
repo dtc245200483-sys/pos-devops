@@ -1,0 +1,29 @@
+# Environment files
+.env
+.env.local
+
+# SSL Certificates & Private Keys
+nginx/certs/*.key
+nginx/certs/*.crt
+nginx/certs/*.csr
+nginx/certs/*.pem
+
+# Evidence & reports
+evidence/
+
+# Logs
+*.log
+logs/
+
+# Volume data
+data/
+db_data/
+grafana_data/
+prometheus_data/
+loki_data/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
