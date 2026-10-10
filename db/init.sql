@@ -90,4 +90,9 @@ ON DUPLICATE KEY UPDATE `code`=`code`;
 CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY 'change_this_exporter_password_min16chars' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
 GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
+
+-- Least Privilege for pos_app & disable remote root
+GRANT SELECT, INSERT, UPDATE, DELETE ON `pos`.* TO 'pos_app'@'%';
+DROP USER IF EXISTS 'root'@'%';
 FLUSH PRIVILEGES;
+

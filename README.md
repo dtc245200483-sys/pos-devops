@@ -139,3 +139,20 @@ cp .env.example .env
    - Cảnh báo tự động: Rule `POS - Brute force login` kích hoạt (Firing) sau 10s khi số lần thử sai > 5 / phút, gửi Webhook về `alert-sink` (port 9099).
    - Xem chi tiết phân tích và truy vết sự cố tại file: [docs/su-co-bruteforce.md](docs/su-co-bruteforce.md).
    - Phòng thủ Nginx: Áp dụng `limit_req_zone` giới hạn tốc độ 10r/m cho `/login.php`, tự động chặn đứng kẻ tấn công bằng mã phản hồi `HTTP 429 Too Many Requests`.
+
+---
+
+## 5. Tăng cường Bảo mật Hệ thống (Hardening)
+Hệ thống áp dụng 6 biện pháp tăng cường bảo mật toàn diện:
+1. **Network Segmentation:** Phân tách 3 mạng Docker (`frontend`, `backend` cô lập `internal: true`, `monitoring`). Chỉ duy nhất Nginx mở cổng 80/443.
+2. **Secrets Management:** Bảo vệ biến môi trường qua `.env` (`chmod 600`, nằm trong `.gitignore`, cung cấp `.env.example`), không lộ mật khẩu trong cấu hình.
+3. **Least Privilege CSDL:** User `pos_app` chỉ có quyền DML (`SELECT, INSERT, UPDATE, DELETE`), cấm `DROP/ALTER`, tài khoản `root` chỉ cho phép đăng nhập localhost.
+4. **Container Hardening:** Bật `no-new-privileges:true`, `cap_drop: [ALL]`, Nginx tệp chỉ đọc (`read_only: true`), Exporter/Alert-sink chạy user không đặc quyền (`nobody 65534`), áp dụng giới hạn CPU/RAM.
+5. **Web & App Hardening:** Ẩn `X-Powered-By` và phiên bản Server, Cookie bảo mật (`HttpOnly; Secure; SameSite=Strict`), ẩn `/nginx_status` khỏi bên ngoài (403), chỉ bật TLS 1.2/1.3, duy trì Rate limit đăng nhập (429).
+6. **Host Firewall (UFW):** Áp dụng chính sách Default Deny Incoming, chỉ mở cổng 22, 80, 443.
+
+- Xem chi tiết phương án và bằng chứng kiểm thử tại tài liệu: [docs/HARDENING.md](docs/HARDENING.md).
+- Chạy script kiểm chứng tự động toàn bộ 6 biện pháp:
+  ```bash
+  bash scripts/hardening_evidence.sh
+  ```
