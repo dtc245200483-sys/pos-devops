@@ -1,158 +1,214 @@
-# Hệ Thống Quản Lý Cửa Hàng / POS (Đề Tài 21)
+# Hệ Thống Quản Lý Cửa Hàng / Điểm Bán Lẻ POS (Đề Tài 21)
 
-Môn học: **Triển khai và Quản trị Hệ thống Phần mềm**  
-- **Sinh viên thực hiện:** Phạm Vũ Quang Hưng  
-- **MSSV:** DTC245200483  
-- **Lớp:** CNTT K23C  
-- **Email:** dtc245200483@ictu.edu.vn  
+Kho lưu trữ: **`pos-devops`**  
+Môn học: **Triển khai và Quản trị Hệ thống Phần mềm**
 
 ---
 
-## 1. Giới thiệu đề tài & Kiến trúc hệ thống
-Hệ thống Quản lý Cửa hàng / Bán lẻ (POS - Point of Sale) phục vụ bán hàng tại quầy:
-- **Chức năng chính:** Quản lý sản phẩm, tồn kho tại quầy, bán hàng (quét mã vạch/QR), xuất hóa đơn, quản lý nhân viên, báo cáo doanh thu.
-- **Phân quyền người dùng:**
-  - **Quản lý (Manager):** Toàn quyền hệ thống, quản lý sản phẩm, giá bán, nhập bổ sung tồn kho, quản lý nhân viên và xem báo cáo tài chính/doanh thu.
-  - **Nhân viên (Staff):** Đăng nhập, tra cứu sản phẩm & tồn kho, bán hàng và xuất hóa đơn.
-- **Kiến trúc công nghệ (Docker Compose):**
-  - **Web Application:** PHP 8.x (Apache)
-  - **Database:** MySQL 8.x
-  - **Database Admin:** phpMyAdmin
-  - **Reverse Proxy & Security:** Nginx (HTTPS tự ký, TLS v1.2/1.3, Security Headers: HSTS, CSP, X-Frame-Options...)
-  - **Metrics Monitoring:** Prometheus & Grafana
-  - **Logs Aggregation:** Loki & Promtail
-  - **Container Security & Hardening:** Resource limits, Non-root containers, Read-only rootfs, Drop capabilities.
+## 1. Giới thiệu và thông tin sinh viên
+- **Sinh viên thực hiện:** Phạm Vũ Quang Hưng
+- **Mã số sinh viên (MSSV):** DTC245200483
+- **Lớp:** CNTT K23C
+- **Email:** dtc245200483@ictu.edu.vn
+- **Mô tả đề tài:** Dự án xây dựng và triển khai hệ thống phần mềm Quản lý Điểm bán lẻ (POS - Point of Sale) phục vụ thu ngân tại quầy theo chuẩn DevOps. Hệ thống được đóng gói dạng Microservices/Containerized trên Docker Compose, tích hợp cổng Nginx Reverse Proxy bảo mật HTTPS (TLS 1.2/1.3), phân đoạn mạng nội bộ, giám sát số liệu thời gian thực (Prometheus & Grafana), quản lý log tập trung (Loki & Promtail), cảnh báo an toàn thông tin tự động và áp dụng 6 biện pháp Hardening bảo vệ toàn diện.
 
 ---
 
-## 2. Yêu cầu môi trường & Cài đặt nhanh
-- **Yêu cầu:** Docker Engine 24+, Docker Compose v2.
-- **Khởi chạy hệ thống bằng MỘT lệnh duy nhất:**
-  ```bash
-  # 1. Sinh chứng chỉ SSL tự ký
-  ./nginx/gen-cert.sh
+## 2. Kiến trúc và danh sách dịch vụ kèm phiên bản
+Hệ thống gồm 12 container dịch vụ chạy đồng thời, được phân chia theo 3 mạng nội bộ (`pos_frontend`, `pos_backend`, `pos_monitoring`):
 
-  # 2. Khởi chạy toàn bộ hệ thống
-  docker compose up -d
-  ```
-### Khởi tạo Chứng chỉ SSL Tự Ký:
-Trước khi chạy Nginx lần đầu, chạy script để tự động sinh chứng chỉ SSL tự ký:
+| Dịch vụ | Container Image / Phiên bản | Vai trò & Cổng kết nối | Mạng Docker |
+| :--- | :--- | :--- | :--- |
+| **`nginx`** | `nginx:1.27-alpine` | Reverse Proxy, SSL Termination, Rate Limiting (Cổng công khai: **80/tcp, 443/tcp**) | `frontend`, `monitoring` |
+| **`web`** | `pos-web` (PHP 8.2-apache) | Ứng dụng bán hàng POS (Cổng nội bộ: **80/tcp**) | `frontend`, `backend` |
+| **`db`** | `mysql:8.0` | Cơ sở dữ liệu quan hệ MySQL 8 (Cổng nội bộ: **3306/tcp**) | `backend` (*internal: true*) |
+| **`phpmyadmin`** | `phpmyadmin:5.2.1` | Giao diện quản trị CSDL qua Nginx (Cổng nội bộ: **80/tcp**) | `frontend`, `backend` |
+| **`prometheus`** | `prom/prometheus:v2.54.1` | Máy chủ thu thập & lưu trữ metrics (Cổng nội bộ: **9090/tcp**) | `monitoring` |
+| **`grafana`** | `grafana/grafana:11.2.0` | Dashboard trực quan hóa & Quản lý cảnh báo (Cổng nội bộ: **3000/tcp**) | `monitoring` |
+| **`cadvisor`** | `gcr.io/cadvisor/cadvisor:v0.49.1` | Thu thập chỉ số CPU, RAM, Network của container (Cổng nội bộ: **8080/tcp**) | `monitoring` |
+| **`nginx-exporter`**| `nginx/nginx-prometheus-exporter:1.3.0` | Thu thập metrics hiệu năng từ Nginx stub_status (Cổng nội bộ: **9113/tcp**) | `monitoring` |
+| **`mysqld-exporter`**| `prom/mysqld-exporter:v0.14.0` | Thu thập metrics CSDL MySQL Performance Schema (Cổng nội bộ: **9104/tcp**) | `backend`, `monitoring` |
+| **`loki`** | `grafana/loki:3.1.0` | Cụm lưu trữ và lập chỉ mục Log tập trung (Cổng nội bộ: **3100/tcp**) | `monitoring` |
+| **`promtail`** | `grafana/promtail:3.1.0` | Thu thập log container từ Docker daemon gửi về Loki | `monitoring` |
+| **`alert-sink`** | `python:3.11-alpine` | Webhook HTTP receiver tiếp nhận thông báo từ Grafana Alerting (Cổng nội bộ: **9099/tcp**) | `monitoring` |
+
+---
+
+## 3. Yêu cầu hệ thống
+- **Hệ điều hành:** Ubuntu Server 22.04 LTS / 24.04 LTS (khuyến nghị kiến trúc x86_64).
+- **Phần cứng tối thiểu:**
+  - CPU: 2 Core trở lên.
+  - RAM: 4 GB trở lên (để đảm bảo tải ổn định cho cả stack App, MySQL, Prometheus, Grafana và Loki).
+  - Ổ đĩa: Tối thiểu 20 GB dung lượng trống.
+- **Công cụ cài đặt sẵn:**
+  - Docker Engine 24.0+ và Docker Compose Plugin v2 (`docker compose`).
+  - Git, OpenSSL, cURL, OpenSSH.
+
+---
+
+## 4. Hướng dẫn chạy đúng thứ tự
+Triển khai hệ thống trên máy chủ Ubuntu theo trình tự chuẩn hóa các bước dưới đây:
+
 ```bash
-./nginx/gen-cert.sh
-```
-Chứng chỉ được lưu tại `nginx/certs/server.crt` và khóa riêng tư tại `nginx/certs/server.key` (được bảo vệ trong `.gitignore`).
+# Bước 1: Sao chép mã nguồn dự án từ GitHub
+git clone https://github.com/dtc245200483-sys/pos-devops.git
 
+# Bước 2: Di chuyển vào thư mục dự án
+cd pos-devops
 
----
-
-## 3. Cấu trúc thư mục dự án
-- `web/`: Mã nguồn ứng dụng POS (PHP 8.x) và Dockerfile.
-- `db/`: File init SQL, schema 4 bảng và dữ liệu mẫu.
-- `nginx/`: Cấu hình Nginx reverse proxy, HTTPS certs và security headers.
-- `prometheus/`: Cấu hình thu thập metrics từ web, db, proxy, host.
-- `grafana/`: Provisioning datasources, dashboards và cảnh báo (alerting).
-- `loki/`: Cấu hình lưu trữ và truy vấn log.
-- `promtail/`: Cấu hình thu thập log từ Docker containers & Nginx.
-- `scripts/`: Kịch bản hỗ trợ deploy, backup và kiểm thử.
-- `evidence/`: Bằng chứng kiểm thử và nhật ký triển khai từng bước.
-- `docs/`: Tài liệu chi tiết môn học và báo cáo.
-
----
-
-## 4. Cấu hình biến môi trường
-Tạo file `.env` từ `.env.example`:
-```bash
+# Bước 3: Tạo file cấu hình biến môi trường và điền mật khẩu
 cp .env.example .env
-# Chỉnh sửa mật khẩu an toàn theo nhu cầu
+chmod 600 .env
+nano .env   # Cấu hình các giá trị mật khẩu bí mật an toàn
+
+# Bước 4: Tự động khởi tạo chứng chỉ SSL tự ký cho Nginx HTTPS
+./nginx/gen-cert.sh
+
+# Bước 5: Khởi chạy toàn bộ hệ thống dịch vụ bằng Docker Compose
+docker compose up -d
+
+# Bước 6: Kiểm tra trạng thái toàn bộ container hoạt động bình thường
+docker compose ps
 ```
 
 ---
 
-## 5. Hướng dẫn sử dụng & Quy trình nghiệp vụ POS
-1. Truy cập Web POS qua Nginx Reverse Proxy (HTTPS).
-2. Đăng nhập với tài khoản Quản lý hoặc Nhân viên.
-3. Tạo đơn hàng, kiểm tra tự động trừ tồn kho (database transaction & row-locking).
-4. Thanh toán (tiền mặt / thẻ / QR) và in hóa đơn.
+## 5. Địa chỉ truy cập
+Hệ thống được thiết kế theo mô hình phòng thủ bảo mật, chỉ mở duy nhất cổng Nginx (80/443) ra bên ngoài host:
 
----
-
-## 6. Giám sát hệ thống (Monitoring & Logging)
-- **Grafana Dashboard:** `https://<ip>:3000` hoặc qua reverse proxy.
-- **Prometheus Metrics:** `http://<ip>:9090`
-- **Truy vấn log tập trung (Loki & Promtail):** LogQL theo dõi request, cảnh báo và lỗi hệ thống.
-
----
-
-## 7. An toàn thông tin & Xử lý sự cố
-- Kịch bản mô phỏng tấn công / sự cố bảo mật.
-- Giám sát cảnh báo tự động và truy vết sự cố qua Loki LogQL.
-
----
-
-## 8. Hardening & Tối ưu hóa hệ thống
-- Hardening Docker containers (no-new-privileges, cap-drop, non-root).
-- Tường lửa UFW, cấu hình Nginx rate limiting và bảo vệ cơ sở dữ liệu.
-
-### Hướng dẫn Giám sát Hệ thống (Monitoring):
-1. **Grafana Dashboard (HTTPS):**
-   - Truy cập: `https://192.168.47.128/grafana/`
-   - Đăng nhập: Tài khoản `admin` (mật khẩu trong file `.env`).
-   - Các Dashboard tự động nạp sẵn (Provisioning):
-     - `POS - Containers`: Giám sát CPU %, RAM, Network I/O từng container.
-     - `POS - Nginx`: Giám sát Active connections, Requests/s, Handled/Accepted.
-     - `POS - MySQL`: Giám sát Queries/s, Threads connected/running, InnoDB buffer pool.
-
-2. **Prometheus Targets (SSH Tunnel):**
-   - Vì Prometheus và các Exporter chạy an toàn trong mạng nội bộ Docker (không publish port ra ngoài), bạn có thể mở cổng tạm thời bằng SSH Tunnel từ máy Windows:
-   ```bash
-   ssh -L 9090:localhost:9090 hungkb2k6@192.168.47.128
-   ```
-   Sau đó mở trình duyệt máy Windows truy cập: `http://localhost:9090/targets` để xem 4 targets đều ở trạng thái `UP`.
-
-3. **Cấp quyền cho MySQL Exporter (nếu dùng database có sẵn):**
-   ```sql
-   CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '<MYSQL_EXPORTER_PASSWORD>' WITH MAX_USER_CONNECTIONS 3;
-   GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
-   GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
-   FLUSH PRIVILEGES;
-   ```
-
-### Hướng dẫn Quản lý Log Tập trung (Loki) & Cảnh báo Sự cố (Alerting):
-1. **Truy vấn LogQL trên Grafana Explore:**
-   - Mở Grafana -> Explore -> Chọn Datasource **Loki**.
-   - Các câu truy vấn mẫu (LogQL):
-     - Lỗi HTTP 5xx của Nginx: `{job="nginx"} |~ " 5[0-9]{2} "`
-     - Lỗi / ngoại lệ Web: `{job="webapp"} |~ "(?i)(error|exception|failed)"`
-     - Đăng nhập thất bại: `{job="webapp"} |= "LOGIN_FAILED"`
-     - Tần suất đăng nhập thất bại / phút: `sum(count_over_time({job="webapp"} |= "LOGIN_FAILED" [1m]))`
-
-2. **Kịch bản Sự cố An toàn Thông tin - Tấn công Brute Force:**
-   - Mô phỏng tấn công bằng script:
-     - Trên máy Linux / Ubuntu:
-       ```bash
-       bash scripts/simulate_bruteforce.sh
-       ```
-     - Trên máy Windows (PowerShell):
-       ```powershell
-       powershell -ExecutionPolicy Bypass -File scripts/simulate_bruteforce.ps1
-       ```
-   - Cảnh báo tự động: Rule `POS - Brute force login` kích hoạt (Firing) sau 10s khi số lần thử sai > 5 / phút, gửi Webhook về `alert-sink` (port 9099).
-   - Xem chi tiết phân tích và truy vết sự cố tại file: [docs/su-co-bruteforce.md](docs/su-co-bruteforce.md).
-   - Phòng thủ Nginx: Áp dụng `limit_req_zone` giới hạn tốc độ 10r/m cho `/login.php`, tự động chặn đứng kẻ tấn công bằng mã phản hồi `HTTP 429 Too Many Requests`.
-
----
-
-## 5. Tăng cường Bảo mật Hệ thống (Hardening)
-Hệ thống áp dụng 6 biện pháp tăng cường bảo mật toàn diện:
-1. **Network Segmentation:** Phân tách 3 mạng Docker (`frontend`, `backend` cô lập `internal: true`, `monitoring`). Chỉ duy nhất Nginx mở cổng 80/443.
-2. **Secrets Management:** Bảo vệ biến môi trường qua `.env` (`chmod 600`, nằm trong `.gitignore`, cung cấp `.env.example`), không lộ mật khẩu trong cấu hình.
-3. **Least Privilege CSDL:** User `pos_app` chỉ có quyền DML (`SELECT, INSERT, UPDATE, DELETE`), cấm `DROP/ALTER`, tài khoản `root` chỉ cho phép đăng nhập localhost.
-4. **Container Hardening:** Bật `no-new-privileges:true`, `cap_drop: [ALL]`, Nginx tệp chỉ đọc (`read_only: true`), Exporter/Alert-sink chạy user không đặc quyền (`nobody 65534`), áp dụng giới hạn CPU/RAM.
-5. **Web & App Hardening:** Ẩn `X-Powered-By` và phiên bản Server, Cookie bảo mật (`HttpOnly; Secure; SameSite=Strict`), ẩn `/nginx_status` khỏi bên ngoài (403), chỉ bật TLS 1.2/1.3, duy trì Rate limit đăng nhập (429).
-6. **Host Firewall (UFW):** Áp dụng chính sách Default Deny Incoming, chỉ mở cổng 22, 80, 443.
-
-- Xem chi tiết phương án và bằng chứng kiểm thử tại tài liệu: [docs/HARDENING.md](docs/HARDENING.md).
-- Chạy script kiểm chứng tự động toàn bộ 6 biện pháp:
+- **Web POS:** `https://<IP>/`  
+  *(Ví dụ: `https://192.168.47.128/` - Tài khoản quản trị: `admin`, mật khẩu lấy theo biến `ADMIN_PASSWORD` trong file `.env`).*
+- **phpMyAdmin:** `https://<IP>/phpmyadmin/`  
+  - **Tài khoản đăng nhập:** Sử dụng user **`pos_app`** (mật khẩu tương ứng với giá trị `MYSQL_PASSWORD` trong file `.env`).  
+  - *Lưu ý quan trọng:* Tài khoản `root` đã bị khóa quyền truy cập từ xa (`root@localhost`) theo nguyên tắc Phân quyền tối thiểu (Least Privilege). Do phpMyAdmin kết nối qua mạng nội bộ Docker tới MySQL, người dùng phải đăng nhập bằng `pos_app` để quản lý CSDL `pos`.
+- **Grafana Dashboard:** `https://<IP>/grafana/`  
+  *(Tài khoản: `admin`, mật khẩu tương ứng với biến `GRAFANA_ADMIN_PASSWORD` trong file `.env`).*
+- **Prometheus (Cổng 9090):**  
+  Prometheus chạy hoàn toàn trong mạng nội bộ `pos_monitoring`, không mở cổng trực tiếp ra host. Để truy cập giao diện Prometheus từ máy tính cá nhân, sử dụng kênh SSH Tunnel an toàn:
   ```bash
-  bash scripts/hardening_evidence.sh
+  ssh -L 9090:localhost:9090 hungkb2k6@<IP>
   ```
+  Sau đó mở trình duyệt máy tính truy cập: `http://localhost:9090/targets` (hoặc `http://localhost:9090`).
+
+---
+
+## 6. Nghiệp vụ POS (thanh toán chỉ tiền mặt)
+Hệ thống POS hỗ trợ đầy đủ luồng nghiệp vụ bán hàng tại quầy:
+1. **Đăng nhập & Phân quyền:** Quản lý (`manager`) và Nhân viên bán hàng (`staff`).
+2. **Quản lý danh mục & Tồn kho:** Danh mục khởi tạo sẵn 15 mặt hàng bách hóa thiết yếu với mã vạch (Barcode), giá bán và số lượng tồn kho quầy.
+3. **Bán hàng tại quầy (`pos.php`):** Hỗ trợ thêm sản phẩm vào giỏ hàng hoặc quét mã vạch nhanh. Tự động kiểm tra số lượng tồn kho theo thời gian thực.
+4. **Phương thức thanh toán:** Hệ thống chuyên biệt hóa cho **Thanh toán tiền mặt (Cash)**. Nhân viên nhập số tiền khách đưa (`amount_paid` >= `total_amount`), hệ thống tự động tính toán tiền thừa thối lại (`change_amount`).
+5. **Đảm bảo toàn vẹn dữ liệu (ACID Transaction):** Sử dụng MySQL Transaction kết hợp khóa dòng dữ liệu (`SELECT ... FOR UPDATE`), đảm bảo việc trừ tồn kho chính xác tuyệt đối, không xảy ra xung đột khi nhiều quầy thanh toán cùng lúc.
+6. **In hóa đơn bán hàng (`invoice.php`):** Tự động sinh mã hóa đơn duy nhất (ví dụ `HD202610...`), lưu thông tin đơn hàng và hiển thị giao diện phiếu thu tiền đầy đủ thông tin để in ấn.
+
+---
+
+## 7. Giám sát và log tập trung, kèm 4 câu LogQL mẫu
+- **Giám sát số liệu (Metrics Monitoring):**
+  - Prometheus tự động cào dữ liệu từ 4 target nội bộ (`cadvisor`, `nginx-exporter`, `mysqld-exporter`, `prometheus`).
+  - Grafana được nạp sẵn 4 Dashboard qua Provisioning:
+    + `POS - Containers`: Giám sát tải CPU, RAM và lưu lượng Network I/O từng container.
+    + `POS - Nginx`: Giám sát Active connections, tỷ lệ Requests/s và mã phản hồi HTTP.
+    + `POS - MySQL`: Giám sát tần suất Queries/s, Threads connected/running và InnoDB Buffer Pool.
+    + `POS - Logs`: Khung nhìn truy vấn log tập trung theo thời gian thực.
+- **Quản lý Log tập trung (Loki & Promtail):**
+  - Promtail thu thập log container trực tiếp từ Docker daemon socket, gắn nhãn `job="webapp"`, `job="nginx"`, `job="mysql"` và đẩy về Loki.
+  - **4 câu truy vấn LogQL mẫu phục vụ điều tra và vận hành hệ thống:**
+    1. *Truy vấn lỗi HTTP 5xx từ Nginx Reverse Proxy:*
+       ```logql
+       {job="nginx"} |~ " 5[0-9]{2} "
+       ```
+    2. *Truy vấn lỗi và ngoại lệ phát sinh trong mã nguồn Web:*
+       ```logql
+       {job="webapp"} |~ "(?i)(error|exception|failed)"
+       ```
+    3. *Truy vết các sự kiện đăng nhập thất bại (kèm IP nguồn và username):*
+       ```logql
+       {job="webapp"} |= "LOGIN_FAILED"
+       ```
+    4. *Thống kê số lần đăng nhập thất bại theo phút (Metric Query phục vụ Alerting):*
+       ```logql
+       sum(count_over_time({job="webapp"} |= "LOGIN_FAILED" [1m]))
+       ```
+
+---
+
+## 8. Kịch bản sự cố brute force và cảnh báo
+Hệ thống thiết lập sẵn kịch bản kiểm thử an toàn thông tin mô phỏng cuộc tấn công dò mật khẩu tự động:
+- **Hành vi tấn công:** Script gửi liên tiếp các yêu cầu HTTP POST sai thông tin đăng nhập vào `https://<IP>/login.php` với tần suất cao.
+- **Cơ chế phát hiện tự động:** Grafana Alert Rule `POS - Brute force login` quét biểu thức LogQL theo chu kỳ 10 giây. Khi số lần đăng nhập sai vượt ngưỡng `> 5 lần / phút`, cảnh báo chuyển sang trạng thái **`Firing`** và tự động gửi webhook payload tới dịch vụ `alert-sink`.
+- **Truy vết & Điều tra:** Kỹ sư vận hành sử dụng LogQL trích xuất nhật ký xác thực để xác định địa chỉ IP nguồn, tài khoản mục tiêu và dấu hiệu của script tự động qua User-Agent.
+- **Ngăn chặn & Khắc phục:** Cơ chế **Nginx Rate Limiting** (`rate=10r/m burst=5 nodelay`) tự động chặn đứng kẻ tấn công ngay từ tầng mạng ngoài cùng bằng mã phản hồi **`HTTP 429 Too Many Requests`**, bảo vệ an toàn cho tầng Web và Database.
+- **Báo cáo chi tiết:** Xem tại [docs/su-co-bruteforce.md](file:///d:/ung%20dung%20tri%20tue%20nhan%20ao/monubutu/docs/su-co-bruteforce.md).
+
+---
+
+## 9. Hardening: 6 biện pháp bảo vệ hệ thống
+Hệ thống đã triển khai đầy đủ và kiểm chứng thực tế 6 biện pháp tăng cường an ninh:
+
+1. **BP1 – Phân đoạn mạng Docker (Network Segmentation):** Tách biệt hệ thống thành 3 mạng (`pos_frontend`, `pos_backend` với `internal: true`, `pos_monitoring`). MySQL chỉ nằm trong backend và không publish cổng ra ngoài host; chỉ duy nhất Nginx mở cổng 80/443; container `web` bị chặn hoàn toàn kết nối sang mạng `monitoring`.
+2. **BP2 – Quản lý bí mật qua file `.env` (Secrets Management):** Tách toàn bộ mật khẩu, thông tin kết nối và khóa ứng dụng ra file `.env` với quyền nghiêm ngặt `chmod 600`, đưa vào `.gitignore` để tránh rủi ro đẩy lên Git; cung cấp file mẫu an toàn `.env.example`.
+3. **BP3 – Phân quyền tối thiểu cho CSDL (Least Privilege):** Khởi tạo user ứng dụng riêng `pos_app` chỉ có quyền thao tác dữ liệu cơ bản (`SELECT, INSERT, UPDATE, DELETE`) trên schema `pos` (từ chối hoàn toàn lệnh `DROP TABLE`, `ALTER`); vô hiệu hóa tài khoản `root` từ xa (`root@localhost`).
+4. **BP4 – Hardening Container Runtime:**
+   - Kích hoạt `security_opt: ["no-new-privileges:true"]` cho toàn bộ các container dịch vụ.
+   - Chỉ `alert-sink` và các exporter (`mysqld-exporter`, `nginx-exporter`) chạy dưới người dùng non-root (`user: "65534:65534"` - nobody).
+   - Nginx được cấu hình quyền hạn tối thiểu: `cap_drop: [ALL]`, chỉ cấp các capabilities thiết yếu (`NET_BIND_SERVICE`, `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`), hệ thống tệp gốc ở chế độ chỉ đọc `read_only: true` kèm tmpfs cho các thư mục đệm (`/tmp`, `/var/run`, `/var/cache/nginx`).
+   - Web áp dụng `no-new-privileges:true` và giới hạn tài nguyên CPU/RAM.
+   - Thiết lập hạn mức tài nguyên CPU (`cpus`) và bộ nhớ RAM (`mem_limit`) cho `db`, `web` và `nginx`.
+5. **BP5 – Hardening Ứng dụng & Web Server:**
+   - Ẩn thông tin định danh máy chủ: Tắt `expose_php`, ẩn phiên bản Nginx (`server_tokens off`) và Apache (`ServerTokens Prod`, `ServerSignature Off`).
+   - Thiết lập cookie phiên bảo mật tuyệt đối: `HttpOnly; Secure; SameSite=Strict; use_strict_mode=1`.
+   - Chặn truy cập endpoint `/nginx_status` từ bên ngoài Internet (trả về `HTTP 403`), chỉ cho phép mạng nội bộ Docker phục vụ thu thập metrics.
+   - Vô hiệu hóa các giao thức TLS cũ, chỉ cho phép TLS 1.2 và TLS 1.3.
+   - Duy trì tính năng Nginx Rate Limiting chống tấn công brute-force.
+6. **BP6 – Tường lửa UFW trên Máy chủ Host:**
+   - Áp dụng quy tắc tường lửa UFW theo thứ tự an toàn: `allow 22/tcp`, `allow 80/tcp`, `allow 443/tcp` trước khi bật `ufw enable`.
+   - Thiết lập chính sách mặc định: Chặn toàn bộ lưu lượng vào (`default deny incoming`) và cho phép lưu lượng ra (`default allow outgoing`).
+- **Báo cáo chi tiết & bằng chứng:** Xem tại [docs/HARDENING.md](file:///d:/ung%20dung%20tri%20tue%20nhan%20ao/monubutu/docs/HARDENING.md).
+
+---
+
+## 10. Cấu trúc thư mục dự án
+```text
+pos-devops/
+├── docker-compose.yml          # Cấu hình khởi chạy 12 container dịch vụ & 3 networks
+├── .env.example                # File mẫu biến môi trường (không chứa mật khẩu thật)
+├── .gitignore                  # Khai báo loại trừ file bí mật (.env, private keys, log)
+├── README.md                   # Tài liệu hướng dẫn triển khai và kiến trúc hệ thống
+├── db/
+│   └── init.sql                # Khởi tạo schema CSDL, cấp quyền pos_app và dữ liệu mẫu
+├── web/
+│   ├── Dockerfile              # Dockerfile đóng gói ứng dụng PHP 8.2-Apache
+│   ├── security.ini            # Cấu hình bảo mật PHP (tắt expose_php, cookie an toàn)
+│   ├── security-apache.conf    # Cấu hình bảo mật Apache (ServerTokens Prod)
+│   └── src/                    # Mã nguồn ứng dụng bán hàng POS (PHP/CSS)
+│       ├── index.php           # Điều hướng hệ thống
+│       ├── login.php           # Trang đăng nhập kèm kiểm tra CSRF và ghi log
+│       ├── pos.php             # Giao diện bán hàng tại quầy & xử lý giỏ hàng
+│       ├── invoice.php         # Giao diện hiển thị và in hóa đơn bán hàng
+│       ├── config/             # Kết nối CSDL PDO
+│       └── includes/           # Hàm bổ trợ, xác thực phiên và ghi log LOGIN_FAILED
+├── nginx/
+│   ├── nginx.conf              # Cấu hình Reverse Proxy, HTTPS, Security Headers, Rate Limit
+│   ├── gen-cert.sh             # Script tự động tạo chứng chỉ SSL tự ký
+│   └── certs/                  # Thư mục lưu trữ chứng chỉ SSL (server.crt, server.key)
+├── prometheus/
+│   └── prometheus.yml          # Cấu hình targets cào metrics định kỳ cho Prometheus
+├── grafana/
+│   └── provisioning/           # Cấu hình nạp tự động Datasource, Dashboards và Alerting
+│       ├── datasources/        # Khai báo kết nối Prometheus và Loki
+│       ├── dashboards/         # 4 file JSON Dashboard mẫu
+│       └── alerting/           # Cấu hình Alert Rule "POS - Brute force login"
+├── loki/
+│   └── loki-config.yaml        # Cấu hình dịch vụ lưu trữ log Loki
+├── promtail/
+│   └── promtail-config.yaml    # Cấu hình thu thập log container gửi về Loki
+├── scripts/
+│   ├── alert_sink.py           # Dịch vụ Webhook Python nhận cảnh báo Alertmanager
+│   ├── ratelimit.sh            # Script bật/tắt/kiểm tra trạng thái Nginx Rate Limit
+│   ├── hardening_evidence.sh   # Script tự động chạy và in bằng chứng 6 biện pháp Hardening
+│   └── check_regression.py     # Script kiểm tra hồi quy toàn diện hệ thống
+└── docs/
+    ├── HARDENING.md            # Báo cáo chi tiết 6 biện pháp Hardening và bằng chứng
+    └── su-co-bruteforce.md      # Báo cáo kịch bản sự cố an toàn thông tin & truy vết LogQL
+```
