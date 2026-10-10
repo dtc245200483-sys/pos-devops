@@ -116,7 +116,7 @@ Hệ thống POS hỗ trợ đầy đủ luồng nghiệp vụ bán hàng tại 
   - **4 câu truy vấn LogQL mẫu phục vụ điều tra và vận hành hệ thống:**
     1. *Truy vấn lỗi HTTP 5xx từ Nginx Reverse Proxy:*
        ```logql
-       {job="nginx"} |~ " 5[0-9]{2} "
+       {job="nginx"} |~ "HTTP/[0-9.]+\" 5[0-9]{2} "
        ```
     2. *Truy vấn lỗi và ngoại lệ phát sinh trong mã nguồn Web:*
        ```logql
